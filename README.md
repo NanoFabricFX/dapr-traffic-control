@@ -99,7 +99,8 @@
 
 ![](img/logging-governmentservice.png)
 
-## Running the sample on Kubernetes
+## 在 Kubernetes上运行示例
+
 Execute the following steps to run the sample application on Kubernetes:
 
 First you need to build the Docker images for the three services:
