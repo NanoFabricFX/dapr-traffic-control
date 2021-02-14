@@ -1,6 +1,6 @@
-# Dapr Traffic Control Sample
+# Dapr 交通控制示例
 
-| Attribute            | Details             |
+| 组                  | 细节             |
 | -------------------- | ------------------- |
 | Dapr runtime version | v1.0.0-rc.3         |
 | .NET SDK version     | v1.0.0-rc05         |
@@ -8,81 +8,84 @@
 | Language             | C# (.NET Core)      |
 | Environment          | Local or Kubernetes |
 
-This repository contains a sample application that simulates a traffic-control system using Dapr. For this sample I've used a speeding-camera setup as can be found on several Dutch highways. Over the entire stretch the average speed of a vehicle is measured and if it is above the speeding limit on this highway, the driver of the vehicle receives a speeding ticket.
+此仓库包含一个示例应用程序，用于使用 Dapr 模拟流量控制系统。对于此示例，我们将使用超速摄像头装置，该装置可在多个荷兰高速公路上找到。在某条高速公路的整个长度上，将测量车辆的平均速度，如果该平均速度高于该高速公路上的超速极限，则该车辆的驾驶员会收到超速罚单。
 
-## Overview
-This is an overview of the fictitious setup I'm simulating in this sample:
+## 概述
+这是我在此示例中模拟的虚构设置的概述:
 
 ![](img/speed-trap-overview.png)
 
-There's 1 entry-camera and 1 exit-camera per lane. When a car passes an entry-camera, the license-number of the car is registered.
+每个泳道有1个进入相机和1个离开相机。当汽车通过入口摄像机时，将注册该汽车的车牌号。
 
-In the background, information about the vehicle  is retrieved from the Department Of Motor-vehicles - DMV (or RDW in Dutch) by calling their web-service.
+在后台，通过调用汽车部门的Dvd服务（DMV（或荷兰语中的RDW））获取有关车辆的信息。
 
-When the car passes an exit-camera, this is registered by the system. The system then calculates the average speed of the car based on the entry- and exit-timestamp. If a speeding violation is detected, a message is sent to the Central Judicial Collection Agency - CJCA (or CJIB in Dutch). They will send a speeding-ticket to the driver of the vehicle.
+当汽车通过出口摄像机时，系统会对其进行记录。然后，系统根据进出时间戳记计算汽车的平均速度。如果检测到超速违规，则会向中央司法征收机构发送一条消息-CJCA（或荷兰语中的CJIB）会将超速罚单发送给车辆驾驶员。
 
-## Simulation
-In order to simulate this in code, I created several services as shown below:
+## 模拟
+为了在代码中进行模拟，可以使用以下服务:
 
 ![](img/services.png)
 
-- The **Simulation** is a .NET Core console application that will simulate passing cars.
-- The **TrafficControlService** is an ASP.NET Core WebAPI application that offers 2 endpoints: *Entrycam* and *ExitCam*.
-- The **Government** service is an ASP.NET Core WebAPI application that offers 2 endpoints: *VehicleInfo* (for retrieving vehicle information) and *Collection* (for sending fines).
+-  **Simulation** 是一个 .NET Core 控制台程序模拟过路车.
+-  **TrafficControlService** 是一个ASP.NET Core的WebAPI的应用程序，提供2个端点: *Entrycam* 和 *ExitCam*.
+-  **Government** 服务是一个ASP.NET Core的WebAPI的应用程序，提供2个端点：*RDW*（检索车辆信息）和*CJIB*（用于发送超速罚单） 
 
-The way the simulation works is depicted in the sequence diagram below:
+下面的序列图描述了仿真的工作方式：
 
 ![](img/sequence.png)
 
-1. The **Simulation** generates a random license-number and sends a *VehicleRegistered* message (containing this license-number, a random entry-lane (1-3) and the timestamp) to the *EntryCam* endpoint of the **TrafficControlService**.
-2. The **TrafficControlService** calls the *VehicleInfo* endpoint of the **GovernmentService** to retrieve the brand and model of the vehicle corresponding to the license-number.
-3. The **TrafficControlService** stores the VehicleState (vehicle information and entry-timestamp) in the state-store.
-4. After some random interval, the **Simulation** sends a *VehicleRegistered* message to the *ExitCam* endpoint of the **TrafficControlService** (containing the license-number generated in step 1, a random exit-lane (1-3) and the exit timestamp).
-5. The **TrafficControlService** retrieves the VehicleState from the state-store.
-6. The **TrafficControlService** calculates the average speed of the vehicle using the entry- and exit-timestamp.
-7. If the average speed is above the speed-limit, the **TrafficControlService** calls the *Collection* endpoint of the **GovernmentService**. The request payload will be a *SpeedingViolation* containing the license-number of the vehicle, the identifier of the road, the speeding-violation in KMh and the timestamp of the violation.
-8. The **GovernmentService** calculates the fine for the speeding-violation and simulates sending a speeding-ticket to the owner of the vehicle.
 
-All actions described in this sequence are logged to the console during execution so you can follow the flow.
+1.  **Simulation** 模拟生成汽车车牌号并发送一个消息 *VehicleRegistered*  (包含汽车车牌号, 一个随机的泳道 (1-3) 和时间戳) 到服务 **TrafficControlService** 的端点 *EntryCam* .
+2.  **TrafficControlService** 调用 **GovernmentService** 服务的 *RDW* 的端点  检索对应的汽车号牌车辆的品牌和型号
+3.  **TrafficControlService** 在 state-store 里 存储VehicleState (车辆信息和进入时间戳) .
+4. 一些随机间隔之后，  **Simulation** 发送 *VehicleRegistered* 消息到 **TrafficControlService** 服务的端点  *ExitCam* (含有在步骤1中产生的汽车号牌，随机出口车道（1-3）和出口时间戳).
+5.  **TrafficControlService** 从state-store中获取 VehicleState .
+6.  **TrafficControlService**使用 进入和出去的时间戳 计算平均速度.
+7.  如果平均速度高于速度极限时,  **TrafficControlService** 将发送 *SpeedingViolationDetected* 消息 (包含车辆的车票，路面的标识符，高速化违反KMH和违规的时间戳) 到  **GovernmentService** 的端点 *CJIB* .
+8.  **GovernmentService** 计算超速违章罚款和模拟发送超速票给车主
+
+在执行过程中，此序列中描述的所有操作都会记录到控制台，因此您可以按照流程进行操作。
 
 ## Dapr
-This sample uses Dapr for implementing several aspects of the application. In the diagram below you see a schematic overview of the setup:
+
+此示例使用 Dapr 实现应用程序的多个方面。在下面的图中，看到的是架构概述
 
 ![](img/dapr-setup.png)
 
-1. For communicating messages, the **publish and subscribe** building-block is used. 
-1. For doing request/response type communication with a service, the  **service-to-service invocation** building-block is used. 
-1. For storing the state of a vehicle, the **state management** building-block is used. 
-1. The `VehicleInfoController` in the GovernmentService has an operation `GetVehicleInfo` that uses a `VehicleInfoRepository` to retrieve vehicle data. The constructor of this repository expects a connection-string as argument. This connection-string is stored in a secrets file. The GovernmentService uses the **secrets management** building block with the local file component to get the connection-string.
+1. 对于通信消息, 使用 **发布和订阅** 构建块来实现. 
+2. 对于 request/response 型的服务通信 ，使用 **服务到服务调用** 构建块来实现. 
+3. 对于车辆状态的存储，使用 **状态管理** 构建块来实现. 
+4. 服务GovernmentService 中的 `VehicleInfoController` 有一个操作 `GetVehicleInfo` 使用`VehicleInfoRepository` 获取车辆数据. 这个 repository 的构造函数需要一个连接字符串作为参数。 这个连接字符串存储在一个secrets 文件里。 服务 GovernmentService 使用 **secrets management** 构建块带一个本地文件组件来获取连接字符串.
 
-In this sample, the Reddis component is used for both state management as well as for pub/sub.
+在这个例子里, Redis 组件既用于状态管理，又用于 pub/sub.
 
-## Running the sample in Dapr self-hosted mode
-Execute the following steps to run the sample application in self hosted mode:
+## 使用 Dapr 的 self-hosted 模式运行示例
 
-1. Make sure you have installed Dapr on your machine in self-hosted mode as described in the [Dapr documentation](https://docs.dapr.io/getting-started/install-dapr/).
+执行以下步骤以在自托管模式下运行示例应用程序：
 
-2. Open three separate command-shells.
+1. 确保你已经在你的计算机上 安装Dapr的 self-hosted 模式，具体参考文档 [Dapr documentation](https://docs.dapr.io/getting-started/install-dapr/).
 
-3. In the first shell, change the current folder to the *src/GovernmentService* folder of this repo and execute the following command (using the Dapr cli) to run the **GovernmentService**:
+2. 打开三个独立的命令行窗口.
+
+3. 在第一个命令行Shell， 切换当前路径到 仓库 的 *src/GovernmentService* 文件夹 执行下面的命令行（使用Dapr CLI）运行 **GovernmentService**:
 
     ```
     dapr run --app-id governmentservice --app-port 6000 --dapr-grpc-port 50002 --config ../dapr/config/config.yaml --components-path ../dapr/components dotnet run
     ```
 
-4. In the second shell, change the current folder to the *src/TrafficControlService* folder of this repo and execute the following command (using the Dapr cli) to run the **TrafficControlService**:
+4. 在第二个命令行Shell, 切换当前路径到仓库的 *src/TrafficControlService* 文件夹 执行下面的命令（使用Dapr CLI） **TrafficControlService**:
 
     ```
     dapr run --app-id trafficcontrolservice --app-port 5000 --dapr-grpc-port 50001 --config ../dapr/config/config.yaml --components-path ../dapr/components dotnet run
     ```
 
-5. In the third shell, change the current folder to the *src/Simulation* folder of this repo and execute the following command to run the **Simulation**:
+5. 在第三个命令行Shell, 切换当前路径到仓库的 *src/Simulation* 文件夹 执行下面的命令运行 **Simulation**:
 
     ```
     dapr run --app-id simulation --dapr-grpc-port 50003 --config ../dapr/config/config.yaml --components-path ../dapr/components dotnet run
     ```
 
-You should now see logging in each of the shells, similar to the logging shown below:
+现在，您应该会看到每个 shell 中的日志记录，类似于如下所示的日志记录:
 
 **Simulation:**  
 
